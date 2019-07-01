@@ -1,20 +1,22 @@
 const Escrow = artifacts.require("Escrow");
 const {catchRevert} = require('./exceptionHelpers');
-const BN = web3.utils.BN
+
+
 contract("Escrow", accounts => {
   const creator = accounts[0];
   const alice = accounts[1];
-  const bob = accounts[1];
+  const bob = accounts[2];
 
   let instance;
   
   const AMOUNT = 2000;
-
-  beforeEach(async() => {  
+  
+  beforeEach(async () => {
     instance = await Escrow.new();
   });
-
+  
   describe('Contract Setup', async () => {
+
     it('should set Owner Property to the deploying address', async() => {
       const owner = await instance.owner();
       assert.equal(owner, creator, 'the deploying address should match the owner');
@@ -22,26 +24,27 @@ contract("Escrow", accounts => {
 
     it('should not have any escrow created when deployed', async() => {
       const currentEscrow = await instance.currentEscrow();
-      assert.equal(currentEscrow, 0, 'the just deployed contract should not have any escrow inside it');
+      assert.equal(currentEscrow.toNumber(), 0, 'the just deployed contract should not have any escrow inside it');
     });
   });
 
   describe('Contract Functionality', () => {
     describe('Escrow Creation', () => {
       it('the buyer should be able to create a new escrow with a minimum of 100 weis', async () => {
-        const receipt = await instance.addEscrow(bob, {from: alice, amount: 100});
-        assert.equal(receipt, 0, 'the escrow should be created');
+        const receipt = await instance.addEscrow.call(bob, { from: alice, value: 100 });
+        assert.equal(receipt.toNumber(), 1, 'the escrow should be created');
       });
 
       it('the buyer should no be able to create a new escrow with a value less than 100 weis', async() => {
-        await catchRevert(instance.addEscrow(bob, { from: alice, amount: 99}));
+        await catchRevert(instance.addEscrow(bob, { from: alice, value: 99}));
       });
 
       it('should match the information in getEscrow()', async () => {
-        const escrow = await instance.getEscrow(0);
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        const escrow = await instance.getEscrow.call(1);
         assert.equal(escrow['0'], alice, 'the buyer should match');
         assert.equal(escrow['1'], bob, 'the seller should match');
-        assert.equal(escrow['2'], 100, 'the value should match');
+        assert.equal(escrow['2'], AMOUNT, 'the value should match');
         assert.equal(escrow['3'], false, 'the buyerAgreement should be false at the beginning');
         assert.equal(escrow['4'], false, 'the sellerAgreement should be false at the beginning');
         assert.equal(escrow['5'], false, 'the buyerVote should be false at the beginning');
@@ -53,44 +56,55 @@ contract("Escrow", accounts => {
 
     describe('Escrow Interaction', () => {
       it('should allow the buyer and seller to vote, the escrow should be closed when buyer/seller voted', async() => {
-        await instance.vote(0, true, {from: alice});
-        await instance.vote(0, false, {from: bob});
-        const escrow = await instance.getEscrow(0);
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        await instance.vote(1, true, {from: alice});
+        await instance.vote(1, false, {from: bob});
+        const escrow = await instance.getEscrow(1);
         assert.equal(escrow['3'], true, 'the buyerAgreement should match the vote');
         assert.equal(escrow['4'], false, 'the sellerAgreement should match the vote');
         assert.equal(escrow['5'], true, 'the buyerVote should be true after voting');
         assert.equal(escrow['6'], true, 'the sellerVote should be true after voting');
         assert.equal(escrow['7'], false, 'the isOpen should be false after voting');
       });
+      it('should not allow to vote addresses that are not buyer/seller', async() => {
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        await catchRevert(instance.vote(0, {from: accounts[3]}));
+      });
     });
 
     describe('Escrow Payment', () => {
       describe('should not allow the seller to withdraw', () => {
         it('the escrow did not meet the conditions', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await instance.vote(receipt, false, {from: alice});
-          await instance.vote(receipt, true, {from: bob});
-          await catchRevert(instance.withdraw(receipt, {from: bob}));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, false, {from: alice});
+          await instance.vote(1, true, {from: bob});
+          await catchRevert(instance.withdraw(1, {from: bob}));
+        });
+        it('is not the seller', async() => {
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, false, {from: alice});
+          await instance.vote(1, true, {from: bob});
+          await catchRevert(instance.withdraw(1, {from: accounts[4]}));
         });
         it('the escrow is open', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await catchRevert(instance.withdraw(receipt, { from: bob }));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await catchRevert(instance.withdraw(1, { from: bob }));
         });
         it('the escrow is already withdrawn', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await instance.vote(receipt, true, { from: alice });
-          await instance.vote(receipt, true, { from: bob })
-          await instance.withdraw(receipt, {from: bob});
-          await catchRevert(instance.withdraw(receipt, { from: bob }));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, true, { from: alice });
+          await instance.vote(1, true, { from: bob })
+          await instance.withdraw(1, {from: bob});
+          await catchRevert(instance.withdraw(1, { from: bob }));
         });
       });
 
-      describe('should now allow the owner to transfer if', () => {
+      describe('should allow the owner to transfer if', () => {
         it('the escrow did meet the conditions', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await instance.vote(receipt, true, { from: alice });
-          await instance.vote(receipt, true, { from: bob });
-          await catchRevert(instance.transferWhenBlocked(receipt, bob, {from: creator}));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, true, { from: alice });
+          await instance.vote(1, true, { from: bob });
+          await catchRevert(instance.transferWhenBlocked(1, bob, {from: creator}));
         });
         it('the escrow is open', async() => {
           const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });

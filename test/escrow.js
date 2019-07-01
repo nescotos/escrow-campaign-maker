@@ -107,38 +107,44 @@ contract("Escrow", accounts => {
           await catchRevert(instance.transferWhenBlocked(1, bob, {from: creator}));
         });
         it('the escrow is open', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await catchRevert(instance.transferWhenBlocked(receipt, alice, {from: creator}));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await catchRevert(instance.transferWhenBlocked(1, alice, {from: creator}));
         });
         it('the address provided is not buyer nor seller', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-          await instance.vote(receipt, false, { from: alice });
-          await instance.vote(receipt, true, { from: bob });
-          await catchRevert(instance.transferWhenBlocked(receipt, accounts[5], { from: creator }));
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, false, { from: alice });
+          await instance.vote(1, true, { from: bob });
+          await catchRevert(instance.transferWhenBlocked(1, accounts[5], { from: creator }));
+        });
+        it('the address is not the owner', async() => {
+          await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.vote(1, false, { from: alice });
+          await instance.vote(1, true, { from: bob });
+          await catchRevert(instance.transferWhenBlocked(1, bob, { from: bob }));
         });
       });
 
       describe('should allow the seller to withdraw if', () => {
         it('the scrow met the conditions', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
           const bobBalance = await web3.eth.getBalance(bob);
-          await instance.vote(receipt, true, { from: alice });
-          await instance.vote(receipt, true, { from: bob });
-          await instance.withdraw(receipt, {from: bob});
+          await instance.addEscrow(bob, { from: alice, value: 2000000000000000000 });
+          await instance.vote(1, true, { from: alice });
+          await instance.vote(1, true, { from: bob });
+          await instance.withdraw(1, {from: bob});
           const bobBalanceAfter = await web3.eth.getBalance(bob);
-          assert.isAbove(Number(bobBalanceAfter), Number(bobBalance), "bob's balance should be increased");
+          assert(Number(bobBalanceAfter) > Number(bobBalance), "bob's balance should be increased");
         });
       });
 
       describe('should allow the creator to transfer if', () => {
         it('the scrow did not meet the conditions', async() => {
-          const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+          await instance.addEscrow(bob, { from: alice, value: 2000000000000000000 });
           const aliceBalance = await web3.eth.getBalance(alice);
-          await instance.vote(receipt, false, { from: alice });
-          await instance.vote(receipt, true, { from: bob });
+          await instance.vote(1, false, { from: alice });
+          await instance.vote(1, true, { from: bob });
+          await instance.transferWhenBlocked(1, alice, { from: creator });
           const aliceBalanceAfter = await web3.eth.getBalance(alice);
-          await instance.transferWhenBlocked(receipt, alice, { from: creator });
-          assert.isAbove(Number(aliceBalanceAfter), Number(aliceBalance), "alice's balance should be increased");
+          assert(Number(aliceBalanceAfter) > Number(aliceBalance), "alice's balance should be increased");
         });
       });
     });

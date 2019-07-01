@@ -38,9 +38,29 @@ contract Escrow {
   }
 
   /// @notice Only allow to buyer/seller to perform certain operation
-  modifier onlyBuyerSeller(uint _id) {
+  modifier onlyBuyerSeller(uint _id, address _address) {
     EscrowPayment memory myEscrow = escrows[_id];
-    require(msg.sender == myEscrow.buyer || msg.sender == myEscrow.seller, "the sender must be buyer or seller");
+    require(_address == myEscrow.buyer || _address == myEscrow.seller, "the sender must be buyer or seller");
+    _;
+  }
+
+  /// @notice Checks if the Escrow is open
+  modifier escrowIsOpen(uint _id){
+    EscrowPayment memory myEscrow = escrows[_id];
+    require(!myEscrow.isOpen, "the escrow must be closed to withdraw");
+    _;
+  }
+
+  /// @notice Checks if the Escrow is withdrawn
+  modifier isWithDrawn(uint _id){
+    EscrowPayment memory myEscrow = escrows[_id];
+    require(!myEscrow.isWithdraw, "the escrow is already withdrawn");
+    _;
+  }
+
+  /// @notice Checks if the msg.sender is the owner
+  modifier restricted(){
+    require(msg.sender == owner, "only owner is able to perform this operation");
     _;
   }
 
@@ -90,7 +110,7 @@ contract Escrow {
   /// @param _id Id of the Escrow Payment
   /// @param _vote Boolean value to represent the vote
   /// @return true if everything went well
-  function vote(uint _id, bool _vote) public onlyBuyerSeller(_id) returns (bool){
+  function vote(uint _id, bool _vote) public onlyBuyerSeller(_id, msg.sender) returns (bool){
     EscrowPayment storage myEscrow = escrows[_id];
     myEscrow.agreement[msg.sender] = _vote;
     myEscrow.vote[msg.sender] = true;
@@ -104,13 +124,26 @@ contract Escrow {
   /// @notice Allows to withdraw the money from the escrow payment
   /// @param _id Id of the Escrow Payment
   /// @return true if everything went well
-  function withdraw(uint _id) public returns (bool){
+  function withdraw(uint _id) public escrowIsOpen(_id) isWithDrawn(_id) returns (bool){
     EscrowPayment storage myEscrow = escrows[_id];
-    require(!myEscrow.isOpen, "the escrow must be closed to withdraw");
-    require(!myEscrow.isWithdraw, "the escrow is already withdrawn");
     require(msg.sender == myEscrow.seller, "the sender must be the seller");
     require(myEscrow.agreement[myEscrow.buyer] && myEscrow.agreement[myEscrow.seller], "there must be an agreement between buyer and seller");
     myEscrow.seller.transfer(myEscrow.amount);
+    myEscrow.isWithdraw = true;
+    return true;
+  }
+
+  /// @notice Allows to transfer a blocked escrow payment to the buyer or seller
+  /// @param _id Id of the Escrow Payment
+  /// @param _address Recipient of transaction
+  /// @return true if everything went well
+  function transferWhenBlocked(uint _id, address payable _address) public
+  escrowIsOpen(_id)
+  onlyBuyerSeller(_id, _address)
+  restricted() returns (bool){
+    EscrowPayment storage myEscrow = escrows[_id];
+    require(!myEscrow.agreement[myEscrow.buyer] || !myEscrow.agreement[myEscrow.seller], "there must not be an agreement");
+    _address.transfer(myEscrow.amount);
     myEscrow.isWithdraw = true;
     return true;
   }

@@ -18,7 +18,7 @@ If the buyer and seller disagreed, then the creator of the contract will be cont
 - Solidity
 - Truffle
 - React
-- RimbleUI
+- Bulma
 - IPFS
 - Kovan Test Network
 

@@ -162,47 +162,47 @@ contract("Escrow", accounts => {
       });
 
       it('should emit an event when a vote happens', async() => {
-        const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-        const buyerVote = await instance.vote(receipt, true, { from: alice });
-        let expectedAddress = buyerVote.logs[0].args.address;
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        const buyerVote = await instance.vote(1, true, { from: alice });
+        let expectedAddress = buyerVote.logs[0].args.voterAddress;
         let expectedVote = buyerVote.logs[0].args.vote;
         let expectedId = buyerVote.logs[0].args.id.toNumber();
-        assert.equal(alice, expectedAddress, "LogVote event address not emitted correctly");
-        assert.equal(expectedVote, true, "LogVote event vote not emitted correctly");
-        assert.equal(expectedId, receipt, "LogVote event id not emitted correctly");
-        const sellerVote = await instance.vote(receipt, false, { from: bob });
-        expectedAddress = sellerVote.logs[0].args.address;
+        assert.equal(alice, expectedAddress, "LogVote event address not emitted correctly for buyer");
+        assert.equal(expectedVote, true, "LogVote event vote not emitted correctly for buyer");
+        assert.equal(expectedId, 1, "LogVote event id not emitted correctly for buyer");
+        const sellerVote = await instance.vote(1, false, { from: bob });
+        expectedAddress = sellerVote.logs[0].args.voterAddress;
         expectedVote = sellerVote.logs[0].args.vote;
         expectedId = sellerVote.logs[0].args.id.toNumber();
-        assert.equal(bob, expectedAddress, "LogVote event address not emitted correctly");
-        assert.equal(expectedVote, false, "LogVote event vote not emitted correctly");
-        assert.equal(expectedId, receipt, "LogVote event id not emitted correctly");        
+        assert.equal(bob, expectedAddress, "LogVote event address not emitted correctly for seller");
+        assert.equal(expectedVote, false, "LogVote event vote not emitted correctly for seller");
+        assert.equal(expectedId, 1, "LogVote event id not emitted correctly for seller");        
       });
 
       it('should emit an event when a withdraw happens', async() => {
-        const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-        await instance.vote(receipt, true, { from: alice });
-        await instance.vote(receipt, true, { from: bob })
-        const results = await instance.withdraw(receipt, { from: bob });
-        const expectedAddress = results.logs[0].args.address;
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        await instance.vote(1, true, { from: alice });
+        await instance.vote(1, true, { from: bob })
+        const results = await instance.withdraw(1, { from: bob });
+        const expectedAddress = results.logs[0].args.withdrawAddress;
         const expectedAmount = results.logs[0].args.amount.toNumber();
         const expectedId = results.logs[0].args.id.toNumber();
         assert.equal(bob, expectedAddress, "LogWithdraw event address not emitted correctly");
         assert.equal(expectedAmount, AMOUNT, "LogWithdraw event amount not emitted correctly");
-        assert.equal(expectedId, receipt, "LogWithdraw event id not emitted correctly");  
+        assert.equal(expectedId, 1, "LogWithdraw event id not emitted correctly");  
       });
 
       it('should emit an event when the creator transfer the amount', async() => {
-        const receipt = await instance.addEscrow(bob, { from: alice, value: AMOUNT });
-        await instance.vote(receipt, false, { from: alice });
-        await instance.vote(receipt, true, { from: bob });
-        const results = await instance.transferWhenBlocked(receipt, alice, { from: creator });
-        const expectedAddress = results.logs[0].args.address;
+        await instance.addEscrow(bob, { from: alice, value: AMOUNT });
+        await instance.vote(1, false, { from: alice });
+        await instance.vote(1, true, { from: bob });
+        const results = await instance.transferWhenBlocked(1, alice, { from: creator });
+        const expectedAddress = results.logs[0].args.transferAddress;
         const expectedAmount = results.logs[0].args.amount.toNumber();
         const expectedId = results.logs[0].args.id.toNumber();
         assert.equal(alice, expectedAddress, "LogTransfer event address not emitted correctly");
         assert.equal(expectedAmount, AMOUNT, "LogTransfer event amount not emitted correctly");
-        assert.equal(expectedId, receipt, "LogTransfer event id not emitted correctly");  
+        assert.equal(expectedId, 1, "LogTransfer event id not emitted correctly");  
       });
     });
 
@@ -220,6 +220,7 @@ contract("Escrow", accounts => {
       });
 
       it('should disallow Escrow creation when stopped', async () => {
+        await instance.setStopped(true, { from: creator });
         await catchRevert(instance.addEscrow(bob, { from: alice, value: AMOUNT }));
       });
     }); 

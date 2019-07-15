@@ -26,6 +26,7 @@ contract Escrow {
   uint public currentEscrow;
   mapping(uint => EscrowPayment) private escrows;
   uint private MIN_AMOUNT = 99;
+  bool public stopped;
 
   /*
     Modifiers
@@ -58,26 +59,53 @@ contract Escrow {
     _;
   }
 
+  /// @notice Checks if the Contract is Stopped or not
+  modifier isContractOpen(){
+    require(!stopped, "the contract is stopped by the owner");
+    _;
+  }
+
+
   /// @notice Checks if the msg.sender is the owner
   modifier restricted(){
     require(msg.sender == owner, "only owner is able to perform this operation");
     _;
   }
 
+  /// @notice Logs when a new Escrow is created
+  event LogEscrowCreated(address buyerAddress, address sellerAddress, uint amount);
+
+  /// @notice Logs when a new vote is created
+  event LogVote(address voterAddress, bool vote, uint id);
+
+  /// @notice Logs when a new vote is created
+  event LogWithdraw(address withdrawAddress, uint amount, uint id);
+
+  /// @notice Logs when a new vote is created
+  event LogTransfer(address transferAddress, uint amount, uint id);
+
 
   /// @notice Contract's Constructor, it will set the msg.sender as owner
   constructor() public {
     currentEscrow = 0;
     owner = msg.sender;
+    stopped = false;
   }
 
   /// @notice Creates a new Escrow Payment into the contract
   /// @param _seller The address of the seller
   /// @return id of the Escrow Contract just created
-  function addEscrow(address payable _seller) public payable checkMin returns (uint) {
+  function addEscrow(address payable _seller) public payable checkMin isContractOpen returns (uint) {
     currentEscrow = currentEscrow + 1;
     escrows[currentEscrow] = EscrowPayment({ buyer: msg.sender, seller: _seller, amount: msg.value, isOpen: true, isWithdraw: false});
+    emit LogEscrowCreated(msg.sender, _seller, msg.value);
     return currentEscrow;
+  }
+
+  /// @notice Set a value for stopped variable
+  /// @param value The value for stopped
+  function setStopped (bool value) public restricted {
+    stopped = value;
   }
 
   /// @notice Returns a specific Escrow based on the received id
@@ -118,6 +146,7 @@ contract Escrow {
     if(myEscrow.vote[myEscrow.seller] && myEscrow.vote[myEscrow.buyer]){
       myEscrow.isOpen = false;
     }
+    emit LogVote(msg.sender, _vote, _id);
     return true;
   }
 
@@ -130,6 +159,7 @@ contract Escrow {
     require(myEscrow.agreement[myEscrow.buyer] && myEscrow.agreement[myEscrow.seller], "there must be an agreement between buyer and seller");
     myEscrow.seller.transfer(myEscrow.amount);
     myEscrow.isWithdraw = true;
+    emit LogWithdraw(myEscrow.seller, myEscrow.amount, _id);
     return true;
   }
 
@@ -145,6 +175,7 @@ contract Escrow {
     require(!myEscrow.agreement[myEscrow.buyer] || !myEscrow.agreement[myEscrow.seller], "there must not be an agreement");
     _address.transfer(myEscrow.amount);
     myEscrow.isWithdraw = true;
+    emit LogTransfer(_address, myEscrow.amount, _id);
     return true;
   }
 }

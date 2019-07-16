@@ -107,6 +107,14 @@ export default class Reader extends Component {
                     </section>
                 }                
                 {
+                    this.state.contractData && ((this.state.contractData.buyerVote && !this.state.contractData.buyerAgreement) || (this.state.contractData.sellerVote && !this.state.contractData.sellerAgreement)) &&
+                    <section className="section">
+                        <div className="field">
+                            <label className="label">This contract is LOCKED, please contact the owner to transfer determine who should receive the Ether</label>
+                        </div>                        
+                    </section>
+                }                
+                {
                     this.state.contractData && this.state.contractData.sellerAgreement
                     && this.state.contractData.buyerAgreement && this.state.contractData.seller === this.state.address && 
                     <section className="section">

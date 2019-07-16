@@ -19,6 +19,14 @@ If the buyer and seller disagreed, then the creator of the contract will be cont
 - Truffle
 - React
 - Bulma
-- IPFS
-- Kovan Test Network
 
+### Run
+
+- Start Ganache CLI using an specific seed
+>`ganache-cli -m 'Some testing accounts'`
+- Deploy contracts on local network:
+>`truffle migrate`
+- Get ABI from Smart Contracts
+>`npm run compile-contracts`
+- Start Web Application
+>`npm run start`

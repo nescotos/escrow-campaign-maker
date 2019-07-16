@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Home from './components/Home';
 import Creator from './components/Creator';
 import Reader from './components/Reader';
+import Admin from  './components/Admin';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route exact path="/" component={Home} />
           <Route exact path="/new" component={Creator} />
           <Route exact path="/reader" component={Reader} />
+          <Route exact path="/admin" component={Admin} />
       </div>
     </Router>
   );

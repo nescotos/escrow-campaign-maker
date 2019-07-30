@@ -1,10 +1,13 @@
 pragma solidity ^0.5.0;
 
+import './SafeMath.sol';
+
 /// @title Escrow
 /// @author Nestor R. Escoto
 /// @notice This contract allow the implementation of Escrow payments trough Ethereum
 
 contract Escrow {
+  using SafeMath for uint256;
   /// @author Nestor R. Escoto
 
   /*
@@ -96,7 +99,8 @@ contract Escrow {
   /// @param _seller The address of the seller
   /// @return id of the Escrow Contract just created
   function addEscrow(address payable _seller) public payable checkMin isContractOpen returns (uint) {
-    currentEscrow = currentEscrow + 1;
+    require(msg.sender != _seller, "Seller and Buyer should not be the same account");
+    currentEscrow = currentEscrow.add(1);
     escrows[currentEscrow] = EscrowPayment({ buyer: msg.sender, seller: _seller, amount: msg.value, isOpen: true, isWithdraw: false});
     emit LogEscrowCreated(msg.sender, _seller, msg.value);
     return currentEscrow;

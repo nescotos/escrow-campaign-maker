@@ -22,6 +22,12 @@ If the buyer and seller disagreed, then the creator of the contract will be cont
 
 ### Run
 
+- Install Global Depedencies:
+>`npm install -g truffle ganache-cli`
+- Install Project Dependencies:
+>`npm install`
+- Run tests
+>`ganache-cli`
 - Start Ganache CLI using an specific seed
 >`ganache-cli -m 'Some testing accounts'`
 - Deploy contracts on local network:
